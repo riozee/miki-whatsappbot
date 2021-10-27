@@ -1,0 +1,110 @@
+{
+	"DB getData": {
+		"scope": "javascript,typescript",
+		"prefix": ["dbGetData"],
+		"body": ["DB.getData('$1');"]
+	},
+	"DB push": {
+		"scope": "javascript,typescript",
+		"prefix": ["dbPush"],
+		"body": ["DB.push('$1', $2);"]
+	},
+	"DB push with no override": {
+		"scope": "javascript,typescript",
+		"prefix": ["dbPushNoOverride"],
+		"body": ["DB.push('$1', $2, false);"]
+	},
+	"plugin": {
+		"scope": "typescript",
+		"prefix": "plugin",
+		"body": [
+			"import type * as Type from '../@types/types';",
+			"import * as __ from '../utils/methods';",
+			"import * as logger from '../utils/logger';",
+			"import * as constants from '../utils/constants';",
+			"",
+			"export const onCommand: Type.PluginOnCommand = async ($) => {",
+			"\tif ($.DBChats[$.message.rjid!]?.muted) return;",
+			"",
+			"\t// ... //",
+			"};",
+			"",
+			"export const onMessage: Type.PluginOnMessage = ($) => {",
+			"\tif ($.DBChats[$.message.rjid!]?.muted) return;",
+			"",
+			"\t// ... //",
+			"};",
+			"",
+			"export const data: Type.PluginData = {",
+			"\tcommand: ['template'],",
+			"\tcategory: 'no category',",
+			"};",
+			""
+		]
+	},
+	"send text message": {
+		"scope": "javascript,typescript",
+		"prefix": ["sendtext"],
+		"body": ["__.sendText(\\$, \\$.texts$1);"]
+	},
+	"import type": {
+		"scope": "javascript,typescript",
+		"prefix": ["importtype"],
+		"body": ["import * as Type from '../@types/types';"]
+	},
+	"import Baileys": {
+		"scope": "javascript,typescript",
+		"prefix": ["importbaileys"],
+		"body": ["import * as Baileys from '@adiwajshing/baileys';"]
+	},
+	"import constants": {
+		"scope": "javascript,typescript",
+		"prefix": ["importconstants"],
+		"body": ["import * as constants from '../utils/constants';"]
+	},
+	"import logger": {
+		"scope": "javascript,typescript",
+		"prefix": ["importlogger"],
+		"body": ["import * as logger from '../utils/logger';"]
+	},
+	"import wa methods": {
+		"scope": "javascript,typescript",
+		"prefix": ["importwamethods"],
+		"body": ["import * as WAMethods from '../utils/WAmethods';"]
+	},
+	"import methods": {
+		"scope": "javascript,typescript",
+		"prefix": ["importmethods"],
+		"body": ["import * as __ from '../utils/methods';"]
+	},
+	"add wait": {
+		"scope": "javascript,typescript",
+		"prefix": ["addwait"],
+		"body": ["__.addWait(\\$, '$1')"]
+	},
+	"wait for": {
+		"scope": "javascript,typescript",
+		"prefix": ["waitfor"],
+		"body": ["__.waitFor(\\$, '$1', (choice, done, cancel) => {", "\t$2", "});"]
+	},
+	"clear wait": {
+		"scope": "javascript,typescript",
+		"prefix": ["clearwait"],
+		"body": ["__.clearWait(\\$)"]
+	},
+	"get wait data": {
+		"scope": "javascript,typescript",
+		"prefix": ["getwaitdata"],
+		"body": ["__.getWaitData(\\$)"]
+	},
+	"check": {
+		"scope": "typescript",
+		"prefix": "check",
+		"body": [
+			"const check = await __.check($, 'group', 'admin', 'botadmin');",
+			"\tif (check) {",
+			"\t\treturn await __.sendText($, $.texts['PERMISSION_COMMAND_' + check.toUpperCase()]);",
+			"\t}"
+		]
+	}
+}
