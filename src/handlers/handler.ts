@@ -9,17 +9,30 @@ import * as methods from '../utils/methods';
 import type * as Type from '../@types/types';
 import * as constants from '../utils/constants';
 
-export const plugins: Type.IPlugin[] = [];
+export const pluginsData: Type.PluginData[] = [];
+let commands: [string, Type.PluginOnCommand][] = [];
+const onmessages: Type.PluginOnMessage[] = [];
 
 for (const file of fs.readdirSync('./js/plugins/')) {
 	if (/\.js$/.test(file)) {
 		try {
-			plugins.push(require('../plugins/' + file));
+			const plugin: Type.IPlugin = require('../plugins/' + file);
+			if (typeof plugin.onMessage === 'function') {
+				onmessages.push(plugin.onMessage);
+			}
+			if (plugin?.data?.command && plugin?.onCommand) {
+				for (const cmd of plugin.data.command) {
+					commands.push([cmd, plugin.onCommand]);
+				}
+				pluginsData.push(plugin.data);
+			}
 		} catch (e) {
 			logger.info(e);
 		}
 	}
 }
+
+commands = commands.sort((a, b) => b[0].length - a[0].length);
 
 export async function handler(conn: Baileys.WAConnection, m: Baileys.WAChatUpdate) {
 	const message = new Message(m, conn);
@@ -40,9 +53,8 @@ export async function handler(conn: Baileys.WAConnection, m: Baileys.WAChatUpdat
 	const DBSystem: Type.IDatabase = DB.getData('/system/');
 	const botNumber = conn.user.jid;
 
-	for (const plugin of plugins) {
-		if (plugin.onMessage)
-			plugin.onMessage(new methods.Wrapper(conn, message, DB, DBChats, DBUsers, DBSystem));
+	for (const onmessage of onmessages) {
+		onmessage(new methods.Wrapper(conn, message, DB, DBChats, DBUsers, DBSystem));
 	}
 
 	if (DBUsers[message.sender!]?.pending?.[message.rjid!]?.blockCommand) return;
@@ -51,19 +63,39 @@ export async function handler(conn: Baileys.WAConnection, m: Baileys.WAChatUpdat
 	if (message.rjid && typeof DBChats[message.rjid]?.prefix === 'string')
 		prefix = DBChats[message.rjid].prefix.toLowerCase();
 
-	let commands: string[] | undefined;
+	let userCommands: string[] | undefined;
 	if (message.rjid && message.text) {
 		if (!methods.isGroup({ message: { rjid: message.rjid } } as methods.Wrapper)) {
-			commands = methods.parseCommand(message.text, prefix, botNumber, conn.user.name || 'bot');
+			userCommands = methods.parseCommand(
+				message.text,
+				prefix,
+				botNumber,
+				conn.user.name || 'bot'
+			);
 		} else if (message._quotedsender && message._quotedsender === botNumber) {
-			commands = methods.parseCommand(message.text, prefix, botNumber, conn.user.name || 'bot');
+			userCommands = methods.parseCommand(
+				message.text,
+				prefix,
+				botNumber,
+				conn.user.name || 'bot'
+			);
 		} else if (message.text.startsWith(prefix)) {
-			commands = methods.parseCommand(message.text, prefix, botNumber, conn.user.name || 'bot');
+			userCommands = methods.parseCommand(
+				message.text,
+				prefix,
+				botNumber,
+				conn.user.name || 'bot'
+			);
 		} else if (
 			message.mentioned?.includes?.(botNumber) ||
 			new RegExp('^\\W*@' + _.escapeRegExp(conn.user.name || 'bot')).test(message.text)
 		) {
-			commands = methods.parseCommand(message.text, prefix, botNumber, conn.user.name || 'bot');
+			userCommands = methods.parseCommand(
+				message.text,
+				prefix,
+				botNumber,
+				conn.user.name || 'bot'
+			);
 			if (message.text.trim().startsWith('@' + methods.trimId(botNumber))) {
 				if (
 					!new RegExp('@' + methods.trimId(botNumber)).test(
@@ -79,59 +111,41 @@ export async function handler(conn: Baileys.WAConnection, m: Baileys.WAChatUpdat
 		}
 	}
 
-	// let found = false;
-	if (commands?.length) {
-		for (const text of commands) {
-			for (const plugin of plugins) {
-				if (plugin.data?.command?.length) {
-					const command = testCommand(plugin.data.command, text);
-					if (command) {
-						logger.info(`Executing "${plugin.data.command[0]}" command...`);
-						if (plugin.onCommand) {
-							const $ = new methods.Wrapper(
-								conn,
-								message,
-								DB,
-								DBChats,
-								DBUsers,
-								DBSystem,
-								text,
-								command,
-								getArgument(command, text)
-							) as Required<methods.Wrapper>;
-							try {
-								await plugin.onCommand($);
-							} catch (e) {
-								logger.error(e);
-								// DB.push(
-								// 	`/system/errors[]`,
-								// 	(e as Error)?.stack ? (e as Error).stack : String(e)
-								// );
-								methods.sendText($, $.texts.TEXT_ERROR);
-							}
-							// found = true;
-							break;
+	if (userCommands?.length) {
+		for (const userCommand of userCommands) {
+			for (const [command, onCommand] of commands) {
+				const theCommand = testCommand(command, userCommand);
+				if (theCommand) {
+					logger.info(`Executing "${theCommand}" command...`);
+					if (typeof onCommand === 'function') {
+						const $ = new methods.Wrapper(
+							conn,
+							message,
+							DB,
+							DBChats,
+							DBUsers,
+							DBSystem,
+							userCommand,
+							theCommand,
+							getArgument(theCommand, userCommand)
+						) as Required<methods.Wrapper>;
+						try {
+							await onCommand($);
+						} catch (e) {
+							logger.error(e);
+							methods.sendText($, $.texts.TEXT_ERROR);
 						}
+						break;
 					}
 				}
 			}
 		}
-		// if (!found) {
-		// 	if (!DBUsers[message.sender!]?.pending?.[message.rjid!]) {
-		// 		if (!DBChats[message.rjid!]?.muted) {
-		// 			const $ = new methods.Wrapper(conn, message, DB, DBChats, DBUsers);
-		// 			methods.sendText($, $.texts.OPERATION_COMMAND_NOTFOUND);
-		// 		}
-		// 	}
-		// }
 	}
 }
 
-function testCommand(commands: string[], text: string) {
-	for (const command of commands.sort((x, y) => y.length - x.length)) {
-		if (new RegExp(`^\\W*${_.escapeRegExp(command).split(' ').join('\\W*')}\\b`, 'i').test(text))
-			return command;
-	}
+function testCommand(command: string, text: string) {
+	if (new RegExp(`^\\W*${_.escapeRegExp(command).split(' ').join('\\W*')}\\b`, 'i').test(text))
+		return command;
 	return false;
 }
 
