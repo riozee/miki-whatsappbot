@@ -1,6 +1,4 @@
 import * as fs from 'fs';
-import * as logger from '../utils/logger';
-import { exec } from 'child_process';
 
 export const CONFIG = JSON.parse(fs.readFileSync('./miki-config.json').toString());
 
@@ -16,7 +14,7 @@ export const BAILEYS_MESSAGE_ID_PREFIX = '3EB0';
 
 export const OWNER_NUMBER: string[] = CONFIG.owner_number.map((number: string) => number + JID_SUFFIX);
 
-export const API_URL = 'localhost:3000';
+export const API_URL = '';
 
 export const API_KEY: string = CONFIG.api_key;
 
@@ -40,19 +38,3 @@ export const TEXTS = (() => {
 	}
 	return _;
 })();
-
-export let THUMB: Buffer;
-
-if (fs.existsSync('./res/thumb.jpg') || fs.existsSync('./res/thumb.png')) {
-	const filename = fs.existsSync('./res/thumb.jpg') ? './res/thumb.jpg' : './res/thumb.png';
-	const output = `./res/${Date.now()}-${process.hrtime()[1]}.jpg`;
-	exec(
-		`ffmpeg -i ${filename} -crf 15 -vf "scale='if(gt(a,1),600,-1)':'if(gt(a,1),-1,350)'" ${output}`,
-		(error) => {
-			if (error) return logger.error(error);
-			fs.writeFileSync(filename, fs.readFileSync(output));
-			fs.unlinkSync(output);
-			THUMB = fs.readFileSync(filename);
-		}
-	);
-}

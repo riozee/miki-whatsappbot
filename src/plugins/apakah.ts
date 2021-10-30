@@ -11,7 +11,7 @@ export const onCommand: Type.PluginOnCommand = async ($) => {
 		if ($.argument.trim()) {
 			__.sendText(
 				$,
-				$.texts.COMMAND_APAKAH_TEXT.replace(/%question/g, $.argument + '?').replace(
+				$.texts.COMMAND_APAKAH_TEXT.replace(/%question/g, `${$.command} ${$.argument}?`).replace(
 					/%answer/g,
 					_.sample($.texts.COMMAND_APAKAH_ANSWERS.split('\n')) as string
 				)
